@@ -14,6 +14,7 @@ KOLMO monitors three exchange rates forming a currency triangle (CNY ↔ USD ↔
 | **Provider Stats** | `mcol1_provider_stats` table for operational visibility |
 | **Multi-Provider** | Frankfurter → CBR → TwelveData fallback hierarchy |
 | **API for Analytics** | Latest winner and historical date endpoints for dashboards |
+| **JSON Export** | Automatic daily JSON export for external analytics (Plotly, Figma plugins, etc.) |
 | **Example UI** | React + Plotly (plotly.js-dist-min) demo in example/ |
 | **DTKT Connector** | Standalone program to link rates_winners and kolmo_analysis |
 | **Security** | No hardcoded credentials, Vault/KMS integration ready |
@@ -162,6 +163,9 @@ rates_winners/
 │   │   ├── calculator.py
 │   │   ├── winner.py
 │   │   └── engine.py
+│   ├── export/              # JSON export module
+│   │   ├── __init__.py
+│   │   └── json_exporter.py
 │   └── api/                 # FastAPI routes
 │       ├── __init__.py
 │       ├── routes.py
@@ -170,6 +174,7 @@ rates_winners/
 │   └── 001_initial_schema.sql
 ├── scripts/
 │   ├── backfill_historical.py
+│   ├── export_json.py       # Manual JSON export script
 │   ├── query_date.py
 │   ├── report_markers.py
 │   ├── run_migrations.py
@@ -420,7 +425,63 @@ The main table storing derived KOLMO metrics. All columns are documented below.
 - **trg_validate_kolmo_invariant**: Trigger validates exact product before INSERT/UPDATE
 - **FK to mcol1_external_data**: `ON DELETE RESTRICT` prevents orphaned records
 
-## �📜 License
+## 📤 JSON Export
+
+KOLMO automatically exports daily metrics to JSON files for external analytics tools.
+
+### Automatic Export
+
+After each pipeline run, a JSON file is created in `./data/export/`:
+
+```json
+{
+  "date": "2026-01-19",
+  "r_me4u": "0.143400",
+  "r_iou2": "0.859948",
+  "r_uome": "8.110000",
+  "relpath_me4u": -0.35,
+  "relpath_iou2": 3.24,
+  "relpath_uome": 0.05,
+  "vol_me4u": 0.9859,
+  "vol_iou2": -0.5896,
+  "vol_uome": 0.1234,
+  "winner": "IOU2",
+  "kolmo_deviation": 0.0041
+}
+```
+
+### Manual Export
+
+```bash
+# Export today's data
+python scripts/export_json.py
+
+# Export specific date
+python scripts/export_json.py --date 2026-01-15
+
+# Export date range (creates single file with array)
+python scripts/export_json.py --start 2026-01-01 --end 2026-01-15
+
+# Custom output directory
+python scripts/export_json.py --output ./my_exports
+```
+
+### Configuration
+
+Set in `.env`:
+```
+JSON_EXPORT_ENABLED=true
+JSON_EXPORT_DIR=./data/export
+```
+
+### Using with Figma
+
+For visualization in Figma, use plugins that support JSON import:
+- **Google Sheets Sync** — import JSON via Google Sheets
+- **JSON to Figma** — direct JSON data import
+- **Content Reel** — connect to local JSON files
+
+## 📜 License
 
 MIT License - DTKT Architecture Team
 

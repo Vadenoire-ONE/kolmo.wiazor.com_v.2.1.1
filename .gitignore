@@ -10,6 +10,7 @@
 # Secrets and keys
 instructions/
 secrets/
+example/
 structure.md
 *.key
 *.pem

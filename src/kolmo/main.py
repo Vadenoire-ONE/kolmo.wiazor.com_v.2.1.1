@@ -24,6 +24,7 @@ from kolmo.api import router
 from kolmo.computation import ComputationEngine
 from kolmo.computation.engine import persist_compute_data, persist_external_data
 from kolmo.config import get_settings
+from kolmo.export import export_daily_json
 from kolmo.database import close_pool, get_pool
 from kolmo.models import CurrencyPair, ExternalDataCreate
 from kolmo.providers import ProviderManager
@@ -109,6 +110,20 @@ async def run_daily_pipeline(target_date: date | None = None) -> dict[str, Any]:
             f"KOLMO={compute_data.kolmo_value}"
         )
         
+        # === STAGE 3.5: JSON EXPORT ===
+        settings = get_settings()
+        json_path = None
+        if settings.json_export_enabled:
+            logger.info("📄 Stage 3.5: JSON Export")
+            try:
+                json_path = await export_daily_json(
+                    compute_data,
+                    output_dir=settings.json_export_dir
+                )
+                logger.info(f"✅ JSON exported: {json_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ JSON export failed (non-blocking): {e}")
+        
         # === STAGE 4: API SERVING ===
         logger.info("🌐 Stage 4: API Ready")
         logger.info(f"✅ Pipeline complete for {date_str}")
@@ -120,7 +135,8 @@ async def run_daily_pipeline(target_date: date | None = None) -> dict[str, Any]:
             "winner": compute_data.winner.value,
             "kolmo_value": str(compute_data.kolmo_value),
             "kolmo_state": compute_data.kolmo_state.value,
-            "trace_id": str(trace_id)
+            "trace_id": str(trace_id),
+            "json_export": str(json_path) if json_path else None
         }
         
     except Exception as e:

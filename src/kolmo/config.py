@@ -73,6 +73,16 @@ class Settings(BaseSettings):
     # === Feature Flags ===
     enable_backfill: bool = Field(default=False)
     
+    # === JSON Export Configuration ===
+    json_export_enabled: bool = Field(
+        default=True,
+        description="Enable automatic JSON export after computation"
+    )
+    json_export_dir: str = Field(
+        default="./data/export",
+        description="Directory for JSON export files"
+    )
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
