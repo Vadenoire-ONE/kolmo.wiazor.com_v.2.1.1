@@ -1,0 +1,97 @@
+# =============================================================================
+# KOLMO.wiazor.com v.2.1.1 — Requirements
+# DTKT Currency Triangle Monitoring System
+# =============================================================================
+# Python >= 3.11 required
+# Install: pip install -r requirements.txt
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WEB FRAMEWORK & SERVER
+# -----------------------------------------------------------------------------
+
+# FastAPI - High-performance async web framework for building REST APIs
+# Used for: /api/v1/winner/latest, /api/v1/rates/{date}, /api/v1/health endpoints
+# Docs: https://fastapi.tiangolo.com/
+fastapi>=0.100.0
+
+# Uvicorn - Lightning-fast ASGI server implementation
+# Used for: Running FastAPI application in production
+# [standard] includes uvloop (faster event loop) and httptools (faster HTTP parsing)
+# Docs: https://www.uvicorn.org/
+uvicorn[standard]>=0.23.0
+
+# -----------------------------------------------------------------------------
+# HTTP CLIENT
+# -----------------------------------------------------------------------------
+
+# HTTPX - Modern async HTTP client for Python 3
+# Used for: Fetching exchange rates from external providers (Frankfurter, CBR, TwelveData)
+# Features: async/await support, HTTP/2, connection pooling, timeout handling
+# Docs: https://www.python-httpx.org/
+httpx>=0.24.0
+
+# -----------------------------------------------------------------------------
+# DATABASE
+# -----------------------------------------------------------------------------
+
+# asyncpg - Fast PostgreSQL database client for Python/asyncio
+# Used for: Async connection to PostgreSQL, storing rates in mcol1_* tables
+# Features: Prepared statements, connection pooling, binary protocol
+# Docs: https://magicstack.github.io/asyncpg/
+asyncpg>=0.28.0
+
+# -----------------------------------------------------------------------------
+# DATA VALIDATION & CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Pydantic - Data validation using Python type annotations
+# Used for: Validating API request/response models (ExternalDataCreate, ComputeDataCreate)
+# Features: JSON Schema generation, strict type coercion, custom validators
+# Docs: https://docs.pydantic.dev/
+pydantic>=2.0.0
+
+# Pydantic-Settings - Settings management using Pydantic
+# Used for: Loading configuration from .env file (DB credentials, API keys)
+# Features: Environment variable parsing, secret file support, nested settings
+# Docs: https://docs.pydantic.dev/latest/concepts/pydantic_settings/
+pydantic-settings>=2.0.0
+
+# python-dotenv - Load environment variables from .env files
+# Used for: Development environment configuration, loading DATABASE_URL, API_KEY
+# Docs: https://saurabh-kumar.com/python-dotenv/
+python-dotenv>=1.0.0
+
+# -----------------------------------------------------------------------------
+# RESILIENCE & RETRY LOGIC
+# -----------------------------------------------------------------------------
+
+# Tenacity - General-purpose retry library with customizable backoff strategies
+# Used for: Retrying failed HTTP requests to exchange rate providers
+# Features: Exponential backoff, retry conditions, stop conditions, callbacks
+# Docs: https://tenacity.readthedocs.io/
+tenacity>=8.2.0
+
+# -----------------------------------------------------------------------------
+# TASK SCHEDULING
+# -----------------------------------------------------------------------------
+
+# APScheduler - Advanced Python Scheduler for background job scheduling
+# Used for: Daily rate fetching at 22:00 EST (REQ-1.3)
+# Features: Cron-like scheduling, persistent job stores, timezone support
+# Docs: https://apscheduler.readthedocs.io/
+apscheduler>=3.10.0
+
+# =============================================================================
+# DEVELOPMENT DEPENDENCIES (install with: pip install -r requirements-dev.txt)
+# =============================================================================
+# Uncomment below for development environment, or use: pip install -e ".[dev]"
+# -----------------------------------------------------------------------------
+
+# pytest>=7.4.0              # Testing framework for unit and integration tests
+# pytest-asyncio>=0.21.0     # Pytest plugin for async/await test functions
+# pytest-cov>=4.1.0          # Pytest plugin for coverage reporting
+# black>=23.0.0              # Code formatter (PEP 8 compliant, opinionated)
+# ruff>=0.0.290              # Fast Python linter (replaces flake8, isort, etc.)
+# mypy>=1.5.0                # Static type checker for Python
+# bandit>=1.7.0              # Security linter for finding vulnerabilities
