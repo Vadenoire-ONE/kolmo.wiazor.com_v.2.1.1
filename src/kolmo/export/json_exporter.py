@@ -98,7 +98,7 @@ class JSONExporter:
             "vol_iou2": None,
             "vol_uome": None,
             "winner": compute_data.winner.value,
-            "kolmo_deviation": float(compute_data.kolmo_deviation)
+            "kolmo_deviation": f"{float(compute_data.kolmo_deviation) * 1e5:.18f}e-5"
         }
         
         # Add volatility if provided
@@ -254,7 +254,7 @@ async def export_from_database(
                 "vol_iou2": float(row["vol_iou2"]) if row["vol_iou2"] is not None else None,
                 "vol_uome": float(row["vol_uome"]) if row["vol_uome"] is not None else None,
                 "winner": row["winner"],
-                "kolmo_deviation": float(row["kolmo_deviation"])
+                "kolmo_deviation": f"{float(row['kolmo_deviation']) * 1e5:.18f}e-5"
             }
             
             filename = f"kolmo_{target_date.isoformat()}.json"
@@ -323,7 +323,7 @@ async def export_history_to_json(
                     "vol_iou2": float(row["vol_iou2"]) if row["vol_iou2"] is not None else None,
                     "vol_uome": float(row["vol_uome"]) if row["vol_uome"] is not None else None,
                     "winner": row["winner"],
-                    "kolmo_deviation": float(row["kolmo_deviation"])
+                    "kolmo_deviation": f"{float(row['kolmo_deviation']) * 1e5:.18f}e-5"
                 })
             
             filename = f"kolmo_history_{start_date.isoformat()}_{end_date.isoformat()}.json"

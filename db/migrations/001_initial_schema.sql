@@ -86,7 +86,7 @@ CREATE TABLE mcol1_compute_data (
     
     -- 🔒 KOLMO invariant (Amendment A1: EXACT decimal)
     kolmo_value NUMERIC(28, 18) NOT NULL,
-    kolmo_deviation NUMERIC(8, 4) NOT NULL,
+    kolmo_deviation NUMERIC(28, 18) NOT NULL,
     kolmo_state VARCHAR(25) NOT NULL 
         CHECK (kolmo_state IN ('OK', 'WARN', 'CRITICAL')),
     
