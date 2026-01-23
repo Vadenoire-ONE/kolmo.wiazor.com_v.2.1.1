@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constants
-FRANKFURTER_BASE_URL = "https://api.frankfurter.app"
+FRANKFURTER_BASE_URL = "https://api.frankfurter.dev/v1"
 BATCH_SIZE = 30  # Days per batch request
 PRECISION_6 = Decimal("0.000001")  # 6 decimal places for rates
 PRECISION_18 = Decimal("0.000000000000000001")  # 18 decimal places for kolmo_value
@@ -497,6 +497,27 @@ class HistoricalBackfill:
         logger.info(f"   Skipped:  {self.stats['skipped']} (already exist)")
         logger.info(f"   Errors:   {self.stats['errors']}")
         logger.info("=" * 60)
+        
+        # 🔒 AUTO-EXPORT: Update fixed JSON file after backfill
+        await self._auto_export_json()
+    
+    async def _auto_export_json(self) -> None:
+        """
+        Automatically export full history to fixed JSON file.
+        """
+        try:
+            from kolmo.export.json_exporter import export_full_history_auto
+            
+            logger.info("📤 Auto-exporting to JSON...")
+            filepath = await export_full_history_auto()
+            
+            if filepath:
+                logger.info(f"✅ JSON exported: {filepath}")
+            else:
+                logger.warning("⚠️ JSON export returned no file")
+                
+        except Exception as e:
+            logger.error(f"❌ Auto-export failed: {e}")
 
 
 async def main():

@@ -338,3 +338,80 @@ async def export_history_to_json(
     except Exception as e:
         logger.error(f"Failed to export history: {e}")
         return None
+
+
+# =============================================================================
+# 🔒 FIXED FILENAME EXPORT - kolmo_history.json
+# =============================================================================
+
+FIXED_HISTORY_FILENAME = "kolmo_history.json"
+
+
+async def export_full_history_auto(
+    output_dir: str | Path | None = None
+) -> Path | None:
+    """
+    🔒 Export FULL KOLMO history to a FIXED filename.
+    
+    This function:
+    - Queries ALL data from mcol1_compute_data
+    - ALWAYS writes to: kolmo_history_2021-07-01_2026-01-22.json
+    - Overwrites the file on each call
+    
+    Use this after backfill or daily updates to keep the export current.
+    
+    Args:
+        output_dir: Optional custom output directory (default: ./data/export)
+    
+    Returns:
+        Path to the fixed JSON file, or None on error
+    """
+    exporter = JSONExporter(output_dir)
+    
+    try:
+        async with get_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT 
+                    date, r_me4u, r_iou2, r_uome,
+                    relpath_me4u, relpath_iou2, relpath_uome,
+                    vol_me4u, vol_iou2, vol_uome,
+                    winner, kolmo_deviation
+                FROM mcol1_compute_data
+                ORDER BY date ASC
+                """
+            )
+            
+            if not rows:
+                logger.warning("No data found in mcol1_compute_data")
+                return None
+            
+            export_data = []
+            for row in rows:
+                export_data.append({
+                    "date": row["date"].isoformat(),
+                    "r_me4u": str(row["r_me4u"]),
+                    "r_iou2": str(row["r_iou2"]),
+                    "r_uome": str(row["r_uome"]),
+                    "relpath_me4u": float(row["relpath_me4u"]) if row["relpath_me4u"] is not None else None,
+                    "relpath_iou2": float(row["relpath_iou2"]) if row["relpath_iou2"] is not None else None,
+                    "relpath_uome": float(row["relpath_uome"]) if row["relpath_uome"] is not None else None,
+                    "vol_me4u": float(row["vol_me4u"]) if row["vol_me4u"] is not None else None,
+                    "vol_iou2": float(row["vol_iou2"]) if row["vol_iou2"] is not None else None,
+                    "vol_uome": float(row["vol_uome"]) if row["vol_uome"] is not None else None,
+                    "winner": row["winner"],
+                    "kolmo_deviation": f"{float(row['kolmo_deviation']) * 1e5:.18f}e-5"
+                })
+            
+            # FIXED filename - always the same
+            filepath = exporter.output_dir / FIXED_HISTORY_FILENAME
+            
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(export_data, f, cls=DecimalEncoder, indent=2, ensure_ascii=False)
+            
+            logger.info(f"✅ Auto-exported history ({len(export_data)} records): {filepath}")
+            return filepath
+            
+    except Exception as e:
+        logger.error(f"Failed to auto-export history: {e}")
+        return None

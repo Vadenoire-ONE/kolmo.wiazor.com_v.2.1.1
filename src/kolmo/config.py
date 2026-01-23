@@ -18,17 +18,14 @@ class Settings(BaseSettings):
         default="https://api.frankfurter.dev",
         description="Frankfurter API base URL (primary provider)"
     )
-    cbr_base_url: str = Field(
-        default="https://www.cbr.ru/scripts/XML_dynamic.asp",
-        description="Central Bank of Russia API base URL (fallback 1)"
-    )
-    twelvedata_api_key: str = Field(
+    # CBR removed - using FreeCurrencyAPI as fallback
+    freecurrencyapi_api_key: str = Field(
         default="",
-        description="TwelveData API key (fallback 2)"
+        description="FreeCurrencyAPI key (fallback provider)"
     )
-    twelvedata_base_url: str = Field(
-        default="https://api.twelvedata.com",
-        description="TwelveData API base URL"
+    freecurrencyapi_base_url: str = Field(
+        default="https://api.freecurrencyapi.com",
+        description="FreeCurrencyAPI base URL"
     )
     
     # === Database Configuration ===

@@ -57,7 +57,7 @@ class FrankfurterClient(BaseRateProvider):
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
-                    f"{self.base_url}/{date}",
+                    f"{self.base_url}/v1/{date}",
                     params=params
                 )
                 response.raise_for_status()

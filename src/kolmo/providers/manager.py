@@ -14,12 +14,11 @@ from typing import Literal
 from kolmo.database import get_connection
 from kolmo.providers.base import BaseRateProvider, RateProviderError
 from kolmo.providers.frankfurter import FrankfurterClient
-from kolmo.providers.cbr import CBRClient
-from kolmo.providers.twelvedata import TwelveDataClient
+from kolmo.providers.freecurrencyapi import FreeCurrencyAPIClient
 
 logger = logging.getLogger(__name__)
 
-ProviderName = Literal["frankfurter", "cbr", "twelvedata"]
+ProviderName = Literal["frankfurter", "freecurrencyapi"]
 
 
 class ProviderManager:
@@ -33,8 +32,7 @@ class ProviderManager:
     def __init__(self):
         self.providers: list[tuple[ProviderName, BaseRateProvider]] = [
             ("frankfurter", FrankfurterClient()),
-            ("cbr", CBRClient()),
-            ("twelvedata", TwelveDataClient()),
+            ("freecurrencyapi", FreeCurrencyAPIClient()),
         ]
     
     async def fetch_with_fallback(
