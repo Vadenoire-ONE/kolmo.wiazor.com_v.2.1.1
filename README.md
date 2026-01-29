@@ -153,6 +153,7 @@ rates_winners/
 │   ├── providers/           # External data providers
 │   │   ├── __init__.py
 │   │   ├── base.py
+│   │   ├── freecurrencyapi.py
 │   │   ├── frankfurter.py
 │   │   ├── cbr.py
 │   │   ├── twelvedata.py
@@ -170,23 +171,30 @@ rates_winners/
 │       ├── __init__.py
 │       ├── routes.py
 │       └── schemas.py
+├── data/
+│   └── export/              # JSON export output
+│       └── kolmo_history.json
 ├── db/migrations/
-│   └── 001_initial_schema.sql
+│   ├── 001_initial_schema.sql
+│   ├── 002_kolmo_deviation_precision.sql
+│   └── 003_update_provider_names.sql
+├── instructions/            # Technical documentation
+│   ├── DTKT_space_rules.md
+│   └── KOLMO.wiazor.com Technical Specification v.2.1.1.md
+├── logs/                    # Application logs
 ├── scripts/
 │   ├── backfill_historical.py
+│   ├── check_schema.py      # Database schema validation
 │   ├── export_json.py       # Manual JSON export script
+│   ├── fetch_missing_days.py  # Fill gaps in historical data
+│   ├── FETCH_MISSING_DAYS_README.md
+│   ├── fetch_till_today.py  # Fetch rates up to current date
 │   ├── query_date.py
+│   ├── report_last_20_days.py
+│   ├── report_last_20_days_full.py
 │   ├── report_markers.py
 │   ├── run_migrations.py
 │   └── test_k_value.py
-├── example/
-│   ├── App.tsx
-│   ├── main.tsx
-│   ├── index.css
-│   ├── Attributions.md
-│   ├── components/
-│   ├── guidelines/
-│   └── styles/
 ├── tests/
 │   ├── golden/
 │   │   └── kolmo_reference_data.csv
@@ -197,6 +205,7 @@ rates_winners/
 ├── pyproject.toml
 ├── requirements.txt
 ├── structure.md
+├── FETCH_MISSING_DAYS_SUMMARY.md
 ├── dtkt_connector.py        # DTKT system launcher
 ├── CONNECTOR_README.md      # Connector documentation
 └── README.md
