@@ -36,6 +36,12 @@ class CBRClient(BaseRateProvider):
         "CNY": "R01375",
         "INR": "R01270",
         "AED": "R01230",
+        "CAD": "R01350",
+        "SGD": "R01395",
+        "THB": "R01675",
+        "VND": "R01700",
+        "HKD": "R01200",
+        "HUF": "R01565",
     }
     
     def __init__(self):
@@ -78,10 +84,9 @@ class CBRClient(BaseRateProvider):
                 char_code = valute.find("CharCode")
                 value = valute.find("Value")
                 nominal = valute.find("Nominal")
-                
                 if char_code is not None and value is not None and nominal is not None:
                     code = char_code.text
-                    if code in ["USD", "EUR", "CNY", "INR", "AED"]:
+                    if code in self.CURRENCY_CODES:
                         # CBR uses comma as decimal separator
                         rate_value = Decimal(value.text.replace(",", "."))
                         nominal_value = Decimal(nominal.text)
@@ -102,11 +107,17 @@ class CBRClient(BaseRateProvider):
             eur_rate_rub = rates_rub["EUR"]
             
             result = {
-                "eur_usd": eur_rate_rub / rates_rub["USD"],
+                "eur_usd": eur_rate_rub / rates_rub["USD"] if "USD" in rates_rub else None,
                 "eur_cny": eur_rate_rub / rates_rub["CNY"] if "CNY" in rates_rub else None,
                 "eur_rub": eur_rate_rub,  # EUR/RUB direct
                 "eur_inr": eur_rate_rub / rates_rub["INR"] if "INR" in rates_rub else None,
                 "eur_aed": eur_rate_rub / rates_rub["AED"] if "AED" in rates_rub else None,
+                "eur_cad": eur_rate_rub / rates_rub["CAD"] if "CAD" in rates_rub else None,
+                "eur_sgd": eur_rate_rub / rates_rub["SGD"] if "SGD" in rates_rub else None,
+                "eur_thb": eur_rate_rub / rates_rub["THB"] if "THB" in rates_rub else None,
+                "eur_vnd": eur_rate_rub / rates_rub["VND"] if "VND" in rates_rub else None,
+                "eur_hkd": eur_rate_rub / rates_rub["HKD"] if "HKD" in rates_rub else None,
+                "eur_huf": eur_rate_rub / rates_rub["HUF"] if "HUF" in rates_rub else None,
             }
             
             logger.info(

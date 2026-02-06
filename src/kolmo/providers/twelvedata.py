@@ -28,7 +28,10 @@ class TwelveDataClient(BaseRateProvider):
     PROVIDER_NAME = "twelvedata"
     
     # Currency pairs to fetch
-    PAIRS = ["EUR/USD", "EUR/CNY", "EUR/RUB", "EUR/INR", "EUR/AED"]
+    PAIRS = [
+        "EUR/USD", "EUR/CNY", "EUR/RUB", "EUR/INR", "EUR/AED",
+        "EUR/CAD", "EUR/SGD", "EUR/THB", "EUR/VND", "EUR/HKD", "EUR/HUF"
+    ]
     
     def __init__(self):
         self.settings = get_settings()

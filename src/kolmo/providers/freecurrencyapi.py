@@ -28,7 +28,9 @@ class FreeCurrencyAPIClient(BaseRateProvider):
     PROVIDER_NAME = "freecurrencyapi"
     
     # Target currencies (we fetch EUR -> these)
-    TARGET_CURRENCIES = ["USD", "CNY", "RUB", "INR", "AED"]
+    TARGET_CURRENCIES = [
+        "USD", "CNY", "RUB", "INR", "AED", "CAD", "SGD", "THB", "VND", "HKD", "HUF"
+    ]
     
     def __init__(self):
         self.settings = get_settings()

@@ -339,20 +339,19 @@ class HistoricalBackfill:
         metrics: dict
     ) -> bool:
         """Вставить данные в таблицы."""
-        
         async with self.pool.acquire() as conn:
-            # Check if already exists
-            existing = await conn.fetchval(
-                "SELECT 1 FROM mcol1_external_data WHERE date = $1",
+            # If compute data already exists for this date, skip (nothing to do)
+            existing_compute = await conn.fetchval(
+                "SELECT 1 FROM mcol1_compute_data WHERE date = $1",
                 rate_date
             )
-            
-            if existing:
+
+            if existing_compute:
                 self.stats["skipped"] += 1
                 return False
-            
+
             snapshot_id = uuid.uuid4()
-            
+
             sources = {
                 "frankfurter": {
                     "url": f"{FRANKFURTER_BASE_URL}/{rate_date}",
@@ -360,19 +359,28 @@ class HistoricalBackfill:
                     "backfill": True
                 }
             }
-            
+
             async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO mcol1_external_data 
-                    (date, eur_usd, eur_usd_pair_desc, eur_cny, eur_cny_pair_desc,
-                     mcol1_snapshot_id, sources)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                """, 
-                    rate_date, eur_usd, "EUR/USD", eur_cny, "EUR/CNY",
-                    snapshot_id, json.dumps(sources)
+                # Insert external data only if it's missing (avoid unique constraint)
+                existing_external = await conn.fetchval(
+                    "SELECT 1 FROM mcol1_external_data WHERE date = $1",
+                    rate_date
                 )
-                
-                await conn.execute("""
+
+                if not existing_external:
+                    await conn.execute(
+                        """
+                        INSERT INTO mcol1_external_data 
+                        (date, eur_usd, eur_usd_pair_desc, eur_cny, eur_cny_pair_desc,
+                         mcol1_snapshot_id, sources)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        """,
+                        rate_date, eur_usd, "EUR/USD", eur_cny, "EUR/CNY",
+                        snapshot_id, json.dumps(sources)
+                    )
+
+                await conn.execute(
+                    """
                     INSERT INTO mcol1_compute_data
                     (date, r_me4u, r_iou2, r_uome, 
                      kolmo_value, kolmo_deviation, kolmo_state,
@@ -381,7 +389,7 @@ class HistoricalBackfill:
                      vol_me4u, vol_iou2, vol_uome,
                      winner, winner_reason, mcol1_snapshot_id)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-                """,
+                    """,
                     rate_date,
                     metrics["r_me4u"],
                     metrics["r_iou2"],
@@ -402,7 +410,7 @@ class HistoricalBackfill:
                     json.dumps(metrics["winner_reason"]),
                     snapshot_id
                 )
-                
+
                 self.stats["inserted"] += 1
                 return True
     

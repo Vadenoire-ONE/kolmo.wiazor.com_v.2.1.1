@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from kolmo.config import Settings
 from kolmo.providers.manager import ProviderManager
+from kolmo.providers.frankfurter import FrankfurterClient
 
 # Configure logging
 logging.basicConfig(
@@ -200,6 +201,77 @@ class MissingDaysFetcher:
             self.error_log.append(error_msg)
             self.stats["errors"] += 1
             return None
+
+    async def fetch_bulk_frankfurter(
+        self,
+        missing_dates: list[date]
+    ) -> dict[date, dict]:
+        """
+        Fetch multiple dates in bulk from Frankfurter API.
+        
+        Uses the range endpoint: /v1/{start}..{end}
+        Much faster than fetching individual dates.
+        
+        Args:
+            missing_dates: List of dates to fetch
+        
+        Returns:
+            Dict mapping dates to fetch results
+        """
+        if not missing_dates:
+            return {}
+        
+        results = {}
+        frankfurter = FrankfurterClient()
+        
+        # Sort dates and get range
+        sorted_dates = sorted(missing_dates)
+        start_date = sorted_dates[0].isoformat()
+        end_date = sorted_dates[-1].isoformat()
+        
+        logger.info(f"🚀 Frankfurter bulk fetch: {start_date} to {end_date} ({len(missing_dates)} dates needed)")
+        
+        try:
+            # Fetch all dates in range at once
+            bulk_rates = await frankfurter.fetch_rates_bulk(start_date, end_date)
+            
+            # Convert to our format, only for missing dates
+            missing_date_set = set(missing_dates)
+            
+            for date_str, rates in bulk_rates.items():
+                # Parse the date string
+                rate_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                
+                # Only include dates we actually need
+                if rate_date in missing_date_set:
+                    # Skip if missing required currencies (USD, CNY)
+                    if rates.get("eur_usd") is None or rates.get("eur_cny") is None:
+                        logger.warning(f"⚠️ Skipping {date_str}: missing USD or CNY")
+                        continue
+                    
+                    results[rate_date] = {
+                        "date": rate_date,
+                        "rates": rates,
+                        "provider": "frankfurter",
+                        "timestamp": datetime.utcnow()
+                    }
+            
+            logger.info(f"✅ Frankfurter bulk fetched {len(results)} dates")
+            self.stats["fetched"] += len(results)
+            
+            # Check for dates that weren't returned (e.g., weekends)
+            fetched_dates = set(results.keys())
+            not_found = missing_date_set - fetched_dates
+            if not_found:
+                logger.info(f"ℹ️ {len(not_found)} dates not available in Frankfurter (likely weekends/holidays)")
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"❌ Frankfurter bulk fetch error: {str(e)}"
+            logger.error(error_msg)
+            self.error_log.append(error_msg)
+            return {}
     
     async def insert_external_data(
         self,
@@ -272,10 +344,84 @@ class MissingDaysFetcher:
         self,
         missing_dates: list[date],
         dry_run: bool = False,
+        batch_size: int = 5,
+        use_bulk: bool = True
+    ) -> None:
+        """
+        Process missing dates using bulk fetch when possible.
+        
+        Args:
+            missing_dates: List of dates to fetch
+            dry_run: If True, don't insert to database
+            batch_size: Number of dates to process concurrently (for fallback)
+            use_bulk: If True, use Frankfurter bulk API first
+        """
+        if not missing_dates:
+            logger.info("🎉 No missing dates - database is complete!")
+            return
+        
+        if dry_run:
+            logger.info(f"🔍 DRY RUN: Would fetch {len(missing_dates)} dates")
+            for d in missing_dates[:10]:
+                logger.info(f"   {d.isoformat()}")
+            if len(missing_dates) > 10:
+                logger.info(f"   ... and {len(missing_dates) - 10} more")
+            return
+        
+        logger.info(f"🚀 Starting fetch for {len(missing_dates)} missing dates...")
+        
+        remaining_dates = list(missing_dates)
+        
+        # Step 1: Try bulk fetch from Frankfurter first
+        if use_bulk and len(missing_dates) > 1:
+            logger.info("📦 Step 1: Trying Frankfurter bulk fetch...")
+            
+            bulk_results = await self.fetch_bulk_frankfurter(remaining_dates)
+            
+            if bulk_results:
+                # Insert bulk results
+                for fetch_result in bulk_results.values():
+                    await self.insert_external_data(fetch_result)
+                
+                # Remove successfully fetched dates from remaining
+                remaining_dates = [d for d in remaining_dates if d not in bulk_results]
+                
+                logger.info(f"✅ Bulk fetch inserted {len(bulk_results)} dates. {len(remaining_dates)} remaining.")
+        
+        # Step 2: Fallback to individual fetch for remaining dates
+        if remaining_dates:
+            logger.info(f"📦 Step 2: Fetching {len(remaining_dates)} remaining dates individually...")
+            
+            for i in range(0, len(remaining_dates), batch_size):
+                batch = remaining_dates[i:i + batch_size]
+                logger.info(f"📦 Processing batch {i // batch_size + 1}/{(len(remaining_dates) + batch_size - 1) // batch_size}")
+                
+                # Fetch all dates in batch concurrently
+                fetch_tasks = [self.fetch_for_date(d) for d in batch]
+                fetch_results = await asyncio.gather(*fetch_tasks)
+                
+                # Insert successful fetches
+                insert_tasks = [
+                    self.insert_external_data(result)
+                    for result in fetch_results
+                    if result is not None
+                ]
+                
+                if insert_tasks:
+                    await asyncio.gather(*insert_tasks)
+                
+                # Brief pause between batches to avoid rate limiting
+                if i + batch_size < len(remaining_dates):
+                    await asyncio.sleep(2)
+
+    async def process_missing_dates_legacy(
+        self,
+        missing_dates: list[date],
+        dry_run: bool = False,
         batch_size: int = 5
     ) -> None:
         """
-        Process missing dates in batches.
+        Legacy method: Process missing dates in batches (without bulk).
         
         Args:
             missing_dates: List of dates to fetch
@@ -368,6 +514,11 @@ async def main():
         default=5,
         help="Number of dates to fetch concurrently (default: 5)"
     )
+    parser.add_argument(
+        "--no-bulk",
+        action="store_true",
+        help="Disable Frankfurter bulk API, fetch dates individually"
+    )
     
     args = parser.parse_args()
     
@@ -394,12 +545,13 @@ async def main():
         await fetcher.process_missing_dates(
             missing_dates,
             dry_run=args.dry_run,
-            batch_size=args.batch_size
+            batch_size=args.batch_size,
+            use_bulk=not args.no_bulk
         )
         
         # Update fetch stats for successful results
         if not args.dry_run:
-            fetcher.stats["fetched"] = fetcher.stats["inserted"] + fetcher.stats["skipped"]
+            fetcher.stats["fetched"] = max(fetcher.stats["fetched"], fetcher.stats["inserted"] + fetcher.stats["skipped"])
         
         fetcher.print_summary()
         
