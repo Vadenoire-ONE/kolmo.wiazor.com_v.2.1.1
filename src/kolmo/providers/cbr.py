@@ -54,13 +54,13 @@ class CBRClient(BaseRateProvider):
     )
     async def fetch_rates(self, date: str) -> dict[str, Decimal]:
         """
-        Fetch rates from CBR and convert to EUR-based.
+        Fetch rates from CBR and convert to RUB-based.
         
         Args:
             date: ISO 8601 date (e.g., "2026-01-15")
         
         Returns:
-            Dict with keys: eur_usd, eur_cny, eur_rub, eur_inr, eur_aed
+            Dict with keys: rub_usd, rub_cny, rub_eur, rub_inr, rub_aed
         """
         # Convert date format for CBR (DD/MM/YYYY)
         date_obj = datetime.strptime(date, "%Y-%m-%d")
@@ -102,29 +102,25 @@ class CBRClient(BaseRateProvider):
                     details={"available": list(rates_rub.keys())}
                 )
             
-            # Cross-calculate EUR-based rates
-            # EUR/USD = (RUB/USD) / (RUB/EUR) = EUR_rate_rub / USD_rate_rub
-            eur_rate_rub = rates_rub["EUR"]
-            
+            # CBR provides direct RUB-based rates
             result = {
-                "eur_usd": eur_rate_rub / rates_rub["USD"] if "USD" in rates_rub else None,
-                "eur_cny": eur_rate_rub / rates_rub["CNY"] if "CNY" in rates_rub else None,
-                "eur_rub": eur_rate_rub,  # EUR/RUB direct
-                "eur_inr": eur_rate_rub / rates_rub["INR"] if "INR" in rates_rub else None,
-                "eur_aed": eur_rate_rub / rates_rub["AED"] if "AED" in rates_rub else None,
-                "eur_cad": eur_rate_rub / rates_rub["CAD"] if "CAD" in rates_rub else None,
-                "eur_sgd": eur_rate_rub / rates_rub["SGD"] if "SGD" in rates_rub else None,
-                "eur_thb": eur_rate_rub / rates_rub["THB"] if "THB" in rates_rub else None,
-                "eur_vnd": eur_rate_rub / rates_rub["VND"] if "VND" in rates_rub else None,
-                "eur_hkd": eur_rate_rub / rates_rub["HKD"] if "HKD" in rates_rub else None,
-                "eur_huf": eur_rate_rub / rates_rub["HUF"] if "HUF" in rates_rub else None,
+                "rub_usd": rates_rub.get("USD"),
+                "rub_cny": rates_rub.get("CNY"),
+                "rub_eur": rates_rub.get("EUR"),  # RUB per EUR
+                "rub_inr": rates_rub.get("INR"),
+                "rub_aed": rates_rub.get("AED"),
+                "rub_cad": rates_rub.get("CAD"),
+                "rub_sgd": rates_rub.get("SGD"),
+                "rub_thb": rates_rub.get("THB"),
+                "rub_vnd": rates_rub.get("VND"),
+                "rub_hkd": rates_rub.get("HKD"),
+                "rub_huf": rates_rub.get("HUF"),
             }
             
             logger.info(
-                f"CBR fetched rates for {date}: "
-                f"EUR/USD={result['eur_usd']}, EUR/CNY={result.get('eur_cny')}"
+                f"CBR fetched rates for {date}: RUB/USD={result['rub_usd']}, RUB/CNY={result.get('rub_cny')}"
             )
-            
+
             return result
             
         except ET.ParseError as e:

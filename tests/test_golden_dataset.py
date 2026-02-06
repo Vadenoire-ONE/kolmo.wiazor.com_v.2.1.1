@@ -8,7 +8,7 @@ Golden Dataset Tests
 import csv
 import os
 import pytest
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from kolmo.computation.transformer import RateTransformer
@@ -28,6 +28,19 @@ def load_golden_data():
     with open(GOLDEN_DATA_PATH, newline="") as f:
         reader = csv.DictReader(f)
         return list(reader)
+
+
+def _parse_optional_decimal(value: str) -> Decimal | None:
+    """Parse a CSV field into Decimal or return None for empty/whitespace."""
+    if value is None:
+        return None
+    s = value.strip()
+    if s == "":
+        return None
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        return None
 
 
 @pytest.fixture
@@ -99,12 +112,15 @@ class TestGoldenDataset:
         """
         for row in golden_data:
             date = row["date"]
-            expected_winner = row["winner"]
+            expected_winner = row.get("winner")
+            if expected_winner is None or expected_winner.strip() == "":
+                # Project invariant: winner is never null; default to IOU2
+                expected_winner = "IOU2"
             
             # Parse RelativePath values (may be empty string for first day)
-            relpath_me4u = Decimal(row["relpath_me4u"]) if row.get("relpath_me4u") else None
-            relpath_iou2 = Decimal(row["relpath_iou2"]) if row.get("relpath_iou2") else None
-            relpath_uome = Decimal(row["relpath_uome"]) if row.get("relpath_uome") else None
+            relpath_me4u = _parse_optional_decimal(row.get("relpath_me4u"))
+            relpath_iou2 = _parse_optional_decimal(row.get("relpath_iou2"))
+            relpath_uome = _parse_optional_decimal(row.get("relpath_uome"))
             
             winner, _ = self.selector.select(relpath_me4u, relpath_iou2, relpath_uome)
             

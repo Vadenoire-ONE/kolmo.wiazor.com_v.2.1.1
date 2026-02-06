@@ -37,13 +37,13 @@ class BaseRateProvider(ABC):
     @abstractmethod
     async def fetch_rates(self, date: str) -> dict[str, Decimal]:
         """
-        Fetch EUR-based exchange rates for a specific date.
+        Fetch exchange rates for a specific date and return RUB-based keys.
         
         Args:
             date: ISO 8601 date string (e.g., "2026-01-15")
         
         Returns:
-            Dict with keys: eur_usd, eur_cny, eur_rub, eur_inr, eur_aed
+            Dict with keys: rub_usd, rub_cny, rub_eur, rub_inr, rub_aed
             All values MUST be Decimal type.
         
         Raises:

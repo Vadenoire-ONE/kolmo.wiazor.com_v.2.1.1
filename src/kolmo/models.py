@@ -53,16 +53,16 @@ class ProviderName(str, Enum):
 
 class CurrencyPair(str, Enum):
     """Currency pair descriptors."""
-    EUR_USD = "EUR/USD"
-    USD_EUR = "USD/EUR"
-    EUR_CNY = "EUR/CNY"
-    CNY_EUR = "CNY/EUR"
-    EUR_RUB = "EUR/RUB"
+    RUB_USD = "RUB/USD"
+    USD_RUB = "USD/RUB"
+    RUB_CNY = "RUB/CNY"
+    CNY_RUB = "CNY/RUB"
     RUB_EUR = "RUB/EUR"
-    EUR_INR = "EUR/INR"
-    INR_EUR = "INR/EUR"
-    EUR_AED = "EUR/AED"
-    AED_EUR = "AED/EUR"
+    EUR_RUB = "EUR/RUB"
+    RUB_INR = "RUB/INR"
+    INR_RUB = "INR/RUB"
+    RUB_AED = "RUB/AED"
+    AED_RUB = "AED/RUB"
 
 
 # === Winner Reason (Explainability) ===
@@ -108,28 +108,28 @@ class ExternalDataCreate(BaseModel):
     """
     date: date
     
-    # EUR-based rates from Frankfurter/CBR format
-    eur_usd: Decimal = Field(ge=Decimal("0.001"), le=Decimal("1000"))
-    eur_usd_pair_desc: CurrencyPair = CurrencyPair.EUR_USD
-    
-    eur_cny: Decimal = Field(ge=Decimal("0.001"), le=Decimal("1000"))
-    eur_cny_pair_desc: CurrencyPair = CurrencyPair.EUR_CNY
-    
-    eur_rub: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("10000"))
-    eur_rub_pair_desc: CurrencyPair | None = CurrencyPair.EUR_RUB
-    
-    eur_inr: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1000"))
-    eur_inr_pair_desc: CurrencyPair | None = CurrencyPair.EUR_INR
-    
-    eur_aed: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1000"))
-    eur_aed_pair_desc: CurrencyPair | None = CurrencyPair.EUR_AED
+    # RUB-based rates from providers
+    rub_usd: Decimal = Field(ge=Decimal("0.0001"), le=Decimal("100000"))
+    rub_usd_pair_desc: CurrencyPair = CurrencyPair.RUB_USD
+
+    rub_cny: Decimal = Field(ge=Decimal("0.0001"), le=Decimal("100000"))
+    rub_cny_pair_desc: CurrencyPair = CurrencyPair.RUB_CNY
+
+    rub_eur: Decimal | None = Field(default=None, ge=Decimal("0.0001"), le=Decimal("100000"))
+    rub_eur_pair_desc: CurrencyPair | None = CurrencyPair.RUB_EUR
+
+    rub_inr: Decimal | None = Field(default=None, ge=Decimal("0.0001"), le=Decimal("100000"))
+    rub_inr_pair_desc: CurrencyPair | None = CurrencyPair.RUB_INR
+
+    rub_aed: Decimal | None = Field(default=None, ge=Decimal("0.0001"), le=Decimal("100000"))
+    rub_aed_pair_desc: CurrencyPair | None = CurrencyPair.RUB_AED
     
     # Audit trail
     mcol1_snapshot_id: UUID = Field(default_factory=uuid4)
     trace_id: UUID = Field(default_factory=uuid4)
     sources: dict[str, Any] = Field(default_factory=dict)
     
-    @field_validator("eur_usd", "eur_cny", "eur_rub", "eur_inr", "eur_aed", mode="before")
+    @field_validator("rub_usd", "rub_cny", "rub_eur", "rub_inr", "rub_aed", mode="before")
     @classmethod
     def convert_to_decimal(cls, v: Any) -> Decimal | None:
         """🔒 REQ-2.1: Ensure all rates are Decimal type."""
@@ -159,13 +159,13 @@ class KolmoRates(BaseModel):
             Example: Decimal('0.1434') means "1 yuan = 0.1434 dollars"
             Or equivalently: "1 dollar buys 6.9748 yuan"
     
-    r_iou2: IOU2 coin = EUR/USD (Euros per 1 US Dollar)
-            Example: Decimal('0.8599') means "1 dollar = 0.8599 euros"
-            Or equivalently: "1 euro buys 1.163 dollars"
-    
-    r_uome: UOME coin = CNY/EUR (Chinese Yuan per 1 Euro)
-            Example: Decimal('8.11') means "1 euro = 8.11 yuan"
-            Or equivalently: "1 yuan buys 0.1233 euros"
+        r_iou2: IOU2 coin = RUB/USD (Rubles per 1 US Dollar)
+            Example: Decimal('76.55') means "1 dollar = 76.55 rubles"
+            Or equivalently: "1 ruble buys 0.013063 dollars"
+
+        r_uome: UOME coin = CNY/RUB (Chinese Yuan per 1 Ruble)
+            Example: Decimal('0.090966') means "1 ruble = 0.090966 yuan"
+            Or equivalently: "1 yuan buys 10.99 rubles"
     """
     r_me4u: Decimal = Field(
         gt=Decimal("0"),

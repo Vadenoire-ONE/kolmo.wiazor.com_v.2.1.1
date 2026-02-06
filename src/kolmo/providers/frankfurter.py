@@ -47,7 +47,7 @@ class FrankfurterClient(BaseRateProvider):
             date: ISO 8601 date (e.g., "2026-01-15")
         
         Returns:
-            Dict with keys: eur_usd, eur_cny, eur_rub, eur_inr, eur_aed
+            Dict with keys: rub_usd, rub_cny, rub_eur, rub_inr, rub_aed
         
         Raises:
             RateProviderError: If API returns error or missing currencies
@@ -86,34 +86,46 @@ class FrankfurterClient(BaseRateProvider):
                 # Don't fail - some currencies may not be available on weekends
             
             # 🔒 REQ-2.1: Convert to exact Decimal
+            # Extract EUR-based quotes first (local names without 'eur_' prefix)
+            rate_usd = self._to_decimal(data["rates"].get("USD"))
+            rate_cny = self._to_decimal(data["rates"].get("CNY"))
+            rate_rub = self._to_decimal(data["rates"].get("RUB"))
+            rate_inr = self._to_decimal(data["rates"].get("INR"))
+            rate_aed = self._to_decimal(data["rates"].get("AED"))
+
+            # Convert to RUB-based fields when possible:
+            # rub_usd = EUR/RUB / EUR/USD = RUB per USD
+            rub_usd = (rate_rub / rate_usd) if (rate_rub is not None and rate_usd is not None) else None
+            # rub_cny = EUR/RUB / EUR/CNY = RUB per CNY
+            rub_cny = (rate_rub / rate_cny) if (rate_rub is not None and rate_cny is not None) else None
+
             rates = {
-                "eur_usd": self._to_decimal(data["rates"].get("USD")),
-                "eur_cny": self._to_decimal(data["rates"].get("CNY")),
-                "eur_rub": self._to_decimal(data["rates"].get("RUB")),
-                "eur_inr": self._to_decimal(data["rates"].get("INR")),
-                "eur_aed": self._to_decimal(data["rates"].get("AED")),
-                "eur_cad": self._to_decimal(data["rates"].get("CAD")),
-                "eur_sgd": self._to_decimal(data["rates"].get("SGD")),
-                "eur_thb": self._to_decimal(data["rates"].get("THB")),
-                "eur_vnd": self._to_decimal(data["rates"].get("VND")),
-                "eur_hkd": self._to_decimal(data["rates"].get("HKD")),
-                "eur_huf": self._to_decimal(data["rates"].get("HUF")),
+                "rub_usd": rub_usd,
+                "rub_cny": rub_cny,
+                "rub_eur": rate_rub,
+                "rub_inr": (rate_rub / rate_inr) if (rate_rub is not None and rate_inr is not None) else None,
+                "rub_aed": (rate_rub / rate_aed) if (rate_rub is not None and rate_aed is not None) else None,
+                "cad": self._to_decimal(data["rates"].get("CAD")),
+                "sgd": self._to_decimal(data["rates"].get("SGD")),
+                "thb": self._to_decimal(data["rates"].get("THB")),
+                "vnd": None,
+                "hkd": self._to_decimal(data["rates"].get("HKD")),
+                "huf": self._to_decimal(data["rates"].get("HUF")),
             }
             
             # Validate required rates present
-            if rates["eur_usd"] is None or rates["eur_cny"] is None:
+            if rates["rub_usd"] is None or rates["rub_cny"] is None:
                 raise RateProviderError(
-                    message="Missing required currencies: USD or CNY",
+                    message="Missing required currencies to derive RUB-based USD/CNY",
                     provider=self.PROVIDER_NAME,
                     error_type="MISSING_CURRENCY",
                     details={"available": list(received)}
                 )
-            
+
             logger.info(
-                f"Frankfurter fetched rates for {date}: "
-                f"EUR/USD={rates['eur_usd']}, EUR/CNY={rates['eur_cny']}"
+                f"Frankfurter fetched rates for {date}: RUB/USD={rates['rub_usd']}, RUB/CNY={rates['rub_cny']}"
             )
-            
+
             return rates
             
         except httpx.HTTPStatusError as e:
@@ -167,11 +179,11 @@ class FrankfurterClient(BaseRateProvider):
             start_date: ISO 8601 date (e.g., "2021-07-01")
             end_date: ISO 8601 date (e.g., "2026-01-29")
         
-        Returns:
-            Dict mapping date strings to rate dicts:
+            Returns:
+            Dict mapping date strings to rate dicts (keys use plain currency codes):
             {
-                "2021-07-01": {"eur_usd": Decimal("1.18"), ...},
-                "2021-07-02": {"eur_usd": Decimal("1.19"), ...},
+                "2021-07-01": {"usd": Decimal("1.18"), ...},
+                "2021-07-02": {"usd": Decimal("1.19"), ...},
             }
         
         Raises:
@@ -215,18 +227,19 @@ class FrankfurterClient(BaseRateProvider):
                 for date_str, day_rates in data["rates"].items():
                     # Convert to our format with Decimal values
                     # Note: RUB, AED, VND will be None - they're not available from Frankfurter
+                    # For bulk responses, RUB not available from Frankfurter
                     results[date_str] = {
-                        "eur_usd": self._to_decimal(day_rates.get("USD")),
-                        "eur_cny": self._to_decimal(day_rates.get("CNY")),
-                        "eur_rub": None,  # Not available from Frankfurter
-                        "eur_inr": self._to_decimal(day_rates.get("INR")),
-                        "eur_aed": None,  # Not available from Frankfurter
-                        "eur_cad": self._to_decimal(day_rates.get("CAD")),
-                        "eur_sgd": self._to_decimal(day_rates.get("SGD")),
-                        "eur_thb": self._to_decimal(day_rates.get("THB")),
-                        "eur_vnd": None,  # Not available from Frankfurter
-                        "eur_hkd": self._to_decimal(day_rates.get("HKD")),
-                        "eur_huf": self._to_decimal(day_rates.get("HUF")),
+                        "rub_usd": None,
+                        "rub_cny": None,
+                        "rub_eur": None,
+                        "rub_inr": None,
+                        "rub_aed": None,
+                        "cad": self._to_decimal(day_rates.get("CAD")),
+                        "sgd": self._to_decimal(day_rates.get("SGD")),
+                        "thb": self._to_decimal(day_rates.get("THB")),
+                        "vnd": None,
+                        "hkd": self._to_decimal(day_rates.get("HKD")),
+                        "huf": self._to_decimal(day_rates.get("HUF")),
                     }
                 
                 logger.info(

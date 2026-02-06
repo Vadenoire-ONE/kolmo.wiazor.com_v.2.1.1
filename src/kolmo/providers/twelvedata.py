@@ -50,7 +50,7 @@ class TwelveDataClient(BaseRateProvider):
             date: ISO 8601 date (e.g., "2026-01-15")
         
         Returns:
-            Dict with keys: eur_usd, eur_cny, eur_rub, eur_inr, eur_aed
+            Dict with keys: rub_usd, rub_cny, rub_eur, rub_inr, rub_aed
         """
         if not self.api_key:
             raise RateProviderError(
@@ -90,29 +90,35 @@ class TwelveDataClient(BaseRateProvider):
                     if "values" in data and len(data["values"]) > 0:
                         close_price = data["values"][0].get("close")
                         if close_price:
-                            key = f"eur_{pair.split('/')[1].lower()}"
+                            key = pair.split('/')[1].lower()
                             results[key] = self._to_decimal(close_price)
             
-            # Validate required rates
-            if results.get("eur_usd") is None or results.get("eur_cny") is None:
+            # Validate required rates (results keys: 'usd','cny','rub',...)
+            rate_usd = results.get("usd")
+            rate_cny = results.get("cny")
+            rate_rub = results.get("rub")
+
+            rub_usd = (rate_rub / rate_usd) if (rate_rub is not None and rate_usd is not None) else None
+            rub_cny = (rate_rub / rate_cny) if (rate_rub is not None and rate_cny is not None) else None
+
+            if rub_usd is None or rub_cny is None:
                 raise RateProviderError(
-                    message="Missing required EUR/USD or EUR/CNY rates",
+                    message="Missing required rates to derive RUB-based USD/CNY",
                     provider=self.PROVIDER_NAME,
                     error_type="MISSING_CURRENCY",
                     details={"available": list(results.keys())}
                 )
-            
+
             logger.info(
-                f"TwelveData fetched rates for {date}: "
-                f"EUR/USD={results.get('eur_usd')}, EUR/CNY={results.get('eur_cny')}"
+                f"TwelveData fetched rates for {date}: RUB/USD={rub_usd}, RUB/CNY={rub_cny}"
             )
-            
+
             return {
-                "eur_usd": results.get("eur_usd"),
-                "eur_cny": results.get("eur_cny"),
-                "eur_rub": results.get("eur_rub"),
-                "eur_inr": results.get("eur_inr"),
-                "eur_aed": results.get("eur_aed"),
+                "rub_usd": rub_usd,
+                "rub_cny": rub_cny,
+                "rub_eur": rate_rub,
+                "rub_inr": (rate_rub / results.get("inr")) if rate_rub and results.get("inr") else None,
+                "rub_aed": (rate_rub / results.get("aed")) if rate_rub and results.get("aed") else None,
             }
             
         except httpx.HTTPStatusError as e:

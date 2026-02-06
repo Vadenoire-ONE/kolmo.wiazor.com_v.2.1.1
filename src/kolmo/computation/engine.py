@@ -60,8 +60,8 @@ class ComputationEngine:
         
         # Step 1: Transform rates to KOLMO notation
         rates = self.transformer.transform(
-            eur_usd=external_data.eur_usd,
-            eur_cny=external_data.eur_cny
+            rub_usd=external_data.rub_usd,
+            rub_cny=external_data.rub_cny
         )
         logger.debug(
             f"Transformed rates: ME4U={rates.r_me4u}, "
@@ -178,35 +178,35 @@ async def persist_external_data(data: ExternalDataCreate) -> None:
         await conn.execute(
             """
             INSERT INTO mcol1_external_data (
-                date, eur_usd, eur_usd_pair_desc,
-                eur_cny, eur_cny_pair_desc,
-                eur_rub, eur_rub_pair_desc,
-                eur_inr, eur_inr_pair_desc,
-                eur_aed, eur_aed_pair_desc,
+                date, rub_usd, rub_usd_pair_desc,
+                rub_cny, rub_cny_pair_desc,
+                rub_eur, rub_eur_pair_desc,
+                rub_inr, rub_inr_pair_desc,
+                rub_aed, rub_aed_pair_desc,
                 mcol1_snapshot_id, trace_id, sources
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
             )
             ON CONFLICT (date) DO UPDATE SET
-                eur_usd = EXCLUDED.eur_usd,
-                eur_cny = EXCLUDED.eur_cny,
-                eur_rub = EXCLUDED.eur_rub,
-                eur_inr = EXCLUDED.eur_inr,
-                eur_aed = EXCLUDED.eur_aed,
+                rub_usd = EXCLUDED.rub_usd,
+                rub_cny = EXCLUDED.rub_cny,
+                rub_eur = EXCLUDED.rub_eur,
+                rub_inr = EXCLUDED.rub_inr,
+                rub_aed = EXCLUDED.rub_aed,
                 sources = EXCLUDED.sources,
                 updated_at = NOW()
             """,
             data.date,
-            data.eur_usd,
-            data.eur_usd_pair_desc.value if data.eur_usd_pair_desc else None,
-            data.eur_cny,
-            data.eur_cny_pair_desc.value if data.eur_cny_pair_desc else None,
-            data.eur_rub,
-            data.eur_rub_pair_desc.value if data.eur_rub_pair_desc else None,
-            data.eur_inr,
-            data.eur_inr_pair_desc.value if data.eur_inr_pair_desc else None,
-            data.eur_aed,
-            data.eur_aed_pair_desc.value if data.eur_aed_pair_desc else None,
+            data.rub_usd,
+            data.rub_usd_pair_desc.value if data.rub_usd_pair_desc else None,
+            data.rub_cny,
+            data.rub_cny_pair_desc.value if data.rub_cny_pair_desc else None,
+            data.rub_eur,
+            data.rub_eur_pair_desc.value if data.rub_eur_pair_desc else None,
+            data.rub_inr,
+            data.rub_inr_pair_desc.value if data.rub_inr_pair_desc else None,
+            data.rub_aed,
+            data.rub_aed_pair_desc.value if data.rub_aed_pair_desc else None,
             data.mcol1_snapshot_id,
             data.trace_id,
             data.sources

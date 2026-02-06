@@ -49,7 +49,7 @@ class FreeCurrencyAPIClient(BaseRateProvider):
             date: ISO 8601 date (e.g., "2026-01-15")
         
         Returns:
-            Dict with keys: eur_usd, eur_cny, eur_rub, eur_inr, eur_aed
+            Dict with keys: rub_usd, rub_cny, rub_eur, rub_inr, rub_aed
         
         Note: FreeCurrencyAPI free tier only provides latest rates,
               not historical. For historical, use /historical endpoint.
@@ -109,29 +109,36 @@ class FreeCurrencyAPIClient(BaseRateProvider):
                 
                 for currency in self.TARGET_CURRENCIES:
                     if currency in rates_data:
-                        key = f"eur_{currency.lower()}"
+                        key = currency.lower()
                         results[key] = self._to_decimal(rates_data[currency])
+
+            # Derive RUB-based keys when possible (results keys: 'usd','cny','rub',...)
+            rate_usd = results.get("usd")
+            rate_cny = results.get("cny")
+            rate_rub = results.get("rub")
+
+            rub_usd = (rate_rub / rate_usd) if (rate_rub is not None and rate_usd is not None) else None
+            rub_cny = (rate_rub / rate_cny) if (rate_rub is not None and rate_cny is not None) else None
             
             # Validate required rates
-            if results.get("eur_usd") is None or results.get("eur_cny") is None:
+            if rub_usd is None or rub_cny is None:
                 raise RateProviderError(
-                    message="Missing required EUR/USD or EUR/CNY rates",
+                    message="Missing required rates to derive RUB-based USD/CNY",
                     provider=self.PROVIDER_NAME,
                     error_type="MISSING_CURRENCY",
                     details={"available": list(results.keys())}
                 )
-            
+
             logger.info(
-                f"FreeCurrencyAPI fetched rates for {date}: "
-                f"EUR/USD={results.get('eur_usd')}, EUR/CNY={results.get('eur_cny')}"
+                f"FreeCurrencyAPI fetched rates for {date}: RUB/USD={rub_usd}, RUB/CNY={rub_cny}"
             )
-            
+
             return {
-                "eur_usd": results.get("eur_usd"),
-                "eur_cny": results.get("eur_cny"),
-                "eur_rub": results.get("eur_rub"),
-                "eur_inr": results.get("eur_inr"),
-                "eur_aed": results.get("eur_aed"),
+                "rub_usd": rub_usd,
+                "rub_cny": rub_cny,
+                "rub_eur": rate_rub,
+                "rub_inr": (rate_rub / results.get("inr")) if rate_rub and results.get("inr") else None,
+                "rub_aed": (rate_rub / results.get("aed")) if rate_rub and results.get("aed") else None,
             }
             
         except httpx.HTTPStatusError as e:

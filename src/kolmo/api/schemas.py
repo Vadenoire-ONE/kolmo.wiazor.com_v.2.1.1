@@ -45,8 +45,8 @@ class WinnerResponse(BaseModel):
     )
     
     r_me4u: str = Field(description="ME4U rate (USD/CNY)")
-    r_iou2: str = Field(description="IOU2 rate (EUR/USD)")
-    r_uome: str = Field(description="UOME rate (CNY/EUR)")
+    r_iou2: str = Field(description="IOU2 rate (RUB/USD)")
+    r_uome: str = Field(description="UOME rate (CNY/RUB)")
     
     kolmo_deviation: float = Field(
         description="Deviation from perfect invariant (|K - 1| * 100)"
@@ -77,8 +77,8 @@ class WinnerResponse(BaseModel):
                 "kolmo_value_str": "1.000041342600000000",
                 "kolmo_value": 1.000041,
                 "r_me4u": "0.143400",
-                "r_iou2": "0.859948",
-                "r_uome": "8.110000",
+                "r_iou2": "76.550000",
+                "r_uome": "0.090966",
                 "kolmo_deviation": 0.0041,
                 "kolmo_state": "OK",
                 "winner_reason": {
