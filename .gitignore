@@ -12,6 +12,7 @@ instructions/
 secrets/
 example/
 structure.md
+files.txt
 *.key
 *.pem
 *.p12
@@ -85,3 +86,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# Generated exports
+data/export/conversion_coefficients.json
+data/export/*.bak

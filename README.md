@@ -12,11 +12,12 @@ KOLMO monitors three exchange rates forming a currency triangle (CNY ↔ USD ↔
 | **Volatility Metrics** | Daily volatility index tracking (`vol_me4u`, `vol_iou2`, `vol_uome`) |
 | **Explainability** | `winner_reason` JSONB tracks why each coin won |
 | **Provider Stats** | `mcol1_provider_stats` table for operational visibility |
-| **Multi-Provider** | Frankfurter → CBR → TwelveData fallback hierarchy |
+| **Multi-Provider** | Frankfurter → CBR fallback hierarchy |
 | **API for Analytics** | Latest winner and historical date endpoints for dashboards |
-| **JSON Export** | Automatic daily JSON export for external analytics (Plotly, Figma plugins, etc.) |
-| **Example UI** | React + Plotly (plotly.js-dist-min) demo in example/ |
-| **DTKT Connector** | Standalone program to link rates_winners and kolmo_analysis |
+| **JSON Export** | Three JSON files: kolmo_history, cbr_of_rub, conversion_coefficients |
+| **Scheduler** | Unified orchestrator (`scheduler.py`) for daily/manual update of all JSON exports |
+| **Kalculator** | Conversion coefficients: winner⇄fiat, winner⇄RUB, winner⇄CBR currencies |
+| **CBR Export** | RUB exchange rates from CBR.ru for all KOLMO dates |
 | **Security** | No hardcoded credentials, Vault/KMS integration ready |
 
 ## 📋 Requirements
@@ -62,20 +63,18 @@ python -m kolmo.main
 - Health: http://localhost:8000/api/v1/health
 - OpenAPI: http://localhost:8000/docs
 
-### 6. Launch Full DTKT System (API + UI)
+### 6. Update JSON Exports
 
 ```bash
-# Check status
-python dtkt_connector.py status
+# One-shot update of all 3 JSON files
+python scripts/scheduler.py --once
 
-# Initialize kolmo_analysis frontend
-python dtkt_connector.py init-analysis
+# Daemon: run now + daily at 22:00 EST
+python scripts/scheduler.py --daemon
 
-# Start both API and UI
-python dtkt_connector.py start-all
+# Custom schedule
+python scripts/scheduler.py --daemon --cron 08:00 --timezone Europe/Moscow
 ```
-
-See [CONNECTOR_README.md](CONNECTOR_README.md) for details.
 
 ## 📊 KOLMO Rates (Standard Notation)
 
@@ -146,34 +145,33 @@ pytest tests/test_golden_dataset.py
 rates_winners/
 ├── src/kolmo/
 │   ├── __init__.py
-│   ├── main.py              # Application entry point
-│   ├── config.py            # Settings management
+│   ├── main.py              # FastAPI + APScheduler entry point
+│   ├── config.py            # Pydantic BaseSettings
 │   ├── models.py            # Pydantic data models
-│   ├── database.py          # Database connection
-│   ├── providers/           # External data providers
+│   ├── database.py          # asyncpg connection pool
+│   ├── api/                 # FastAPI REST routes
 │   │   ├── __init__.py
-│   │   ├── base.py
-│   │   ├── freecurrencyapi.py
-│   │   ├── frankfurter.py
-│   │   ├── cbr.py
-│   │   ├── twelvedata.py
-│   │   └── manager.py
+│   │   ├── routes.py
+│   │   └── schemas.py
 │   ├── computation/         # KOLMO computation engine
 │   │   ├── __init__.py
-│   │   ├── transformer.py
-│   │   ├── calculator.py
-│   │   ├── winner.py
-│   │   └── engine.py
+│   │   ├── transformer.py   # EUR→KOLMO notation
+│   │   ├── calculator.py    # Invariant, distance, relpath
+│   │   ├── winner.py        # Daily winner selection
+│   │   └── engine.py        # Pipeline orchestration
 │   ├── export/              # JSON export module
 │   │   ├── __init__.py
 │   │   └── json_exporter.py
-│   └── api/                 # FastAPI routes
+│   └── providers/           # External data providers
 │       ├── __init__.py
-│       ├── routes.py
-│       └── schemas.py
-├── data/
-│   └── export/              # JSON export output
-│       └── kolmo_history.json
+│       ├── base.py
+│       ├── frankfurter.py   # Primary provider
+│       ├── cbr.py           # CBR.ru (XML API)
+│       └── manager.py       # Fallback logic
+├── data/export/             # JSON export output
+│   ├── kolmo_history.json           # KOLMO rates & metrics
+│   ├── cbr_of_rub.json             # CBR RUB exchange rates
+│   └── conversion_coefficients.json # Winner⇄fiat⇄CBR coefficients
 ├── db/migrations/
 │   ├── 001_initial_schema.sql
 │   ├── 002_kolmo_deviation_precision.sql
@@ -181,33 +179,32 @@ rates_winners/
 ├── instructions/            # Technical documentation
 │   ├── DTKT_space_rules.md
 │   └── KOLMO.wiazor.com Technical Specification v.2.1.1.md
-├── logs/                    # Application logs
-├── scripts/
+├── logs/                    # Application & scheduler logs
+├── scripts/                 # Active operational scripts
+│   ├── scheduler.py         # Unified JSON update orchestrator
+│   ├── update_kolmo_history.py  # Update kolmo_history.json
+│   ├── export_cbr_rub.py    # Update cbr_of_rub.json
+│   ├── kalculator.py        # Compute conversion_coefficients.json
+│   ├── export_json.py       # Manual JSON export from DB
 │   ├── backfill_historical.py
-│   ├── check_schema.py      # Database schema validation
-│   ├── export_json.py       # Manual JSON export script
-│   ├── fetch_missing_days.py  # Fill gaps in historical data
-│   ├── FETCH_MISSING_DAYS_README.md
-│   ├── fetch_till_today.py  # Fetch rates up to current date
+│   ├── inspect_kolmo_history.py
 │   ├── query_date.py
+│   ├── regenerate_golden.py # Regenerate golden test dataset
 │   ├── report_last_20_days.py
 │   ├── report_last_20_days_full.py
 │   ├── report_markers.py
 │   ├── run_migrations.py
-│   └── test_k_value.py
+│   └── archive/             # One-time / historical scripts
 ├── tests/
 │   ├── golden/
 │   │   └── kolmo_reference_data.csv
 │   ├── test_computation.py
-│   └── test_golden_dataset.py
+│   ├── test_golden_dataset.py
+│   └── test_kalculator.py
 ├── .env.example
 ├── .gitignore
 ├── pyproject.toml
-├── requirements.txt
 ├── structure.md
-├── FETCH_MISSING_DAYS_SUMMARY.md
-├── dtkt_connector.py        # DTKT system launcher
-├── CONNECTOR_README.md      # Connector documentation
 └── README.md
 ```
 
@@ -434,61 +431,47 @@ The main table storing derived KOLMO metrics. All columns are documented below.
 - **trg_validate_kolmo_invariant**: Trigger validates exact product before INSERT/UPDATE
 - **FK to mcol1_external_data**: `ON DELETE RESTRICT` prevents orphaned records
 
-## 📤 JSON Export
+## 📤 JSON Export Pipeline
 
-KOLMO automatically exports daily metrics to JSON files for external analytics tools.
+KOLMO maintains three JSON files in `data/export/`, updated by `scripts/scheduler.py`:
 
-### Automatic Export
+| File | Content | Source |
+|------|---------|--------|
+| `kolmo_history.json` | KOLMO rates, metrics, distances, relpaths, winner, deviation, volatility | `update_kolmo_history.py` via Frankfurter API |
+| `cbr_of_rub.json` | CBR exchange rates (all currencies to RUB) | `export_cbr_rub.py` via CBR.ru XML API |
+| `conversion_coefficients.json` | Conversion coefficients: winner⇄fiat, winner⇄RUB, winner⇄CBR | `kalculator.py` (computed from the above two) |
 
-After each pipeline run, a JSON file is created in `./data/export/`:
+### Scheduler
 
-```json
-{
-  "date": "2026-01-19",
-  "r_me4u": "0.143400",
-  "r_iou2": "0.859948",
-  "r_uome": "8.110000",
-  "relpath_me4u": -0.35,
-  "relpath_iou2": 3.24,
-  "relpath_uome": 0.05,
-  "vol_me4u": 0.9859,
-  "vol_iou2": -0.5896,
-  "vol_uome": 0.1234,
-  "winner": "IOU2",
-  "kolmo_deviation": 0.0041
-}
-```
-
-### Manual Export
+The scheduler runs the three steps sequentially: (1) update_kolmo_history → (2) export_cbr_rub → (3) kalculator.
 
 ```bash
-# Export today's data
+# One-shot update & exit
+python scripts/scheduler.py --once
+
+# Daemon mode: daily at 22:00 EST
+python scripts/scheduler.py --daemon
+
+# Custom interval (every 6 hours)
+python scripts/scheduler.py --daemon --interval 360
+```
+
+Logs: `logs/scheduler.log`
+
+### Manual Export from DB
+
+```bash
 python scripts/export_json.py
-
-# Export specific date
 python scripts/export_json.py --date 2026-01-15
-
-# Export date range (creates single file with array)
 python scripts/export_json.py --start 2026-01-01 --end 2026-01-15
-
-# Custom output directory
-python scripts/export_json.py --output ./my_exports
 ```
 
-### Configuration
+### Using with Figma / Plotly
 
-Set in `.env`:
-```
-JSON_EXPORT_ENABLED=true
-JSON_EXPORT_DIR=./data/export
-```
-
-### Using with Figma
-
-For visualization in Figma, use plugins that support JSON import:
+All three JSON files can be consumed by external tools:
+- **Plotly / React** — direct JSON import for charts
 - **Google Sheets Sync** — import JSON via Google Sheets
 - **JSON to Figma** — direct JSON data import
-- **Content Reel** — connect to local JSON files
 
 ## 📜 License
 
