@@ -441,6 +441,81 @@ KOLMO maintains three JSON files in `data/export/`, updated by `scripts/schedule
 | `cbr_of_rub.json` | CBR exchange rates (all currencies to RUB) | `export_cbr_rub.py` via CBR.ru XML API |
 | `conversion_coefficients.json` | Conversion coefficients: winner⇄fiat, winner⇄RUB, winner⇄CBR | `kalculator.py` (computed from the above two) |
 
+### Kalculator Coefficient Rules
+
+`scripts/kalculator.py` uses the following DTKT nominal assumptions (M0.1):
+
+- `1 ME4U ≡ 1 CNY`
+- `1 IOU2 ≡ 1 USD`
+- `1 UOME ≡ 1 EUR`
+
+Coefficient naming convention:
+
+- `X_Y_coef = X / Y` (how many `Y` units are represented by 1 unit of `X`)
+
+#### 1) Winner ⇄ Winner
+
+$$
+\begin{aligned}
+ME4U\_IOU2\_win &= \frac{IOU2}{ME4U} = \frac{r_{iou2}}{r_{me4u}} \\
+IOU2\_ME4U\_win &= \frac{ME4U}{IOU2} = \frac{r_{me4u}}{r_{iou2}} \\
+ME4U\_UOME\_win &= \frac{UOME}{ME4U} = \frac{r_{uome}}{r_{me4u}} \\
+UOME\_ME4U\_win &= \frac{ME4U}{UOME} = \frac{r_{me4u}}{r_{uome}} \\
+IOU2\_UOME\_win &= \frac{UOME}{IOU2} = \frac{r_{uome}}{r_{iou2}} \\
+UOME\_IOU2\_win &= \frac{IOU2}{UOME} = \frac{r_{iou2}}{r_{uome}}
+\end{aligned}
+$$
+
+#### 2) Fiat → Winner
+
+- Identity units:
+  - `CNY_ME4U_coef = USD_IOU2_coef = EUR_UOME_coef = 1`
+- For ME4U base:
+  - `USD_ME4U_coef = r_me4u`
+  - `EUR_ME4U_coef = 1 / r_uome`
+- For IOU2 base:
+  - `EUR_IOU2_coef = r_iou2`
+  - `CNY_IOU2_coef = 1 / r_me4u`
+- For UOME base:
+  - `USD_UOME_coef = 1 / r_iou2`
+  - `CNY_UOME_coef = r_uome`
+
+#### 3) Winner → Fiat
+
+Winner→fiat coefficients are reciprocal to fiat→winner:
+
+- `ME4U_X_coef = 1 / X_ME4U_coef`
+- `IOU2_X_coef = 1 / X_IOU2_coef`
+- `UOME_X_coef = 1 / X_UOME_coef`
+
+Examples:
+
+- `ME4U_USD_coef = 1 / r_me4u`
+- `IOU2_EUR_coef = 1 / r_iou2`
+- `UOME_CNY_coef = 1 / r_uome`
+
+#### 4) CBR Nominal Normalization and RUB Pivot
+
+CBR rates are normalized per 1 currency unit before conversion:
+
+$$r_{rub}[code] = \frac{ratetorub}{nominal}$$
+
+Example: for `JPY` with `nominal = 100`, divide CBR quote by 100.
+
+RUB ⇄ winner formulas:
+
+- `RUB_ME4U_coef = 1 / r_rub[CNY]`
+- `RUB_IOU2_coef = 1 / r_rub[USD]`
+- `RUB_UOME_coef = 1 / r_rub[EUR]`
+- `ME4U_RUB_coef = r_rub[CNY]`
+- `IOU2_RUB_coef = r_rub[USD]`
+- `UOME_RUB_coef = r_rub[EUR]`
+
+Any CBR currency `X` to winner-coin base `b` (`CNY`, `USD`, `EUR`) is computed via RUB pivot:
+
+- `X_WINNER_coef = r_rub[X] / r_rub[b]`
+- `WINNER_X_coef = r_rub[b] / r_rub[X]`
+
 ### Scheduler
 
 The scheduler runs the three steps sequentially: (1) update_kolmo_history → (2) export_cbr_rub → (3) kalculator.
