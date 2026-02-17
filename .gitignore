@@ -88,5 +88,4 @@ temp/
 *.temp
 
 # Generated exports
-data/export/conversion_coefficients.json
 data/export/*.bak

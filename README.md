@@ -19,6 +19,7 @@ KOLMO monitors three exchange rates forming a currency triangle (CNY ↔ USD ↔
 | **Kalculator** | Conversion coefficients: winner⇄fiat, winner⇄RUB, winner⇄CBR currencies |
 | **CBR Export** | RUB exchange rates from CBR.ru for all KOLMO dates |
 | **Security** | No hardcoded credentials, Vault/KMS integration ready |
+| **KOLMO graph** | React + Plotly.js analytics dashboard (`frontend/`) with local data middleware |
 
 ## 📋 Requirements
 
@@ -201,6 +202,15 @@ rates_winners/
 │   ├── test_computation.py
 │   ├── test_golden_dataset.py
 │   └── test_kalculator.py
+├── frontend/                # KOLMO graph — React analytics dashboard
+│   ├── package.json         # Dependencies (React 18, Plotly.js, shadcn/ui)
+│   ├── vite.config.ts       # Vite 6 + local data middleware plugin
+│   ├── index.html           # SPA entry point
+│   └── src/
+│       ├── App.tsx           # Main dashboard (chart, table, controls)
+│       ├── main.tsx          # React root
+│       ├── styles/globals.css # Design tokens (light/dark)
+│       └── components/ui/    # shadcn/ui component library (49 components)
 ├── .env.example
 ├── .gitignore
 ├── pyproject.toml
@@ -541,9 +551,49 @@ python scripts/export_json.py --date 2026-01-15
 python scripts/export_json.py --start 2026-01-01 --end 2026-01-15
 ```
 
-### Using with Figma / Plotly
+### KOLMO graph (Frontend Dashboard)
+
+The `frontend/` directory contains a React + Plotly.js analytics dashboard that visualizes `kolmo_history.json` data.
+
+**Stack:** React 18 · TypeScript · Vite 6.3 · Plotly.js · Tailwind CSS v4 · shadcn/ui
+
+**Quick start:**
+
+```bash
+cd frontend
+npm install
+npm run dev    # → http://localhost:3000
+```
+
+**Data source:** Vite middleware serves local `data/export/kolmo_history.json` at `/api/kolmo_history.json`, with GitHub raw URL as fallback.
+
+**Features:**
+
+| Feature | Description |
+|---------|-------------|
+| Multi-layer Plotly chart | KOLMO Deviation (dotted), Relative Paths (3 lines), Volatility (3 lines) on 3 Y-axes |
+| Time Range Selector | Drag handles + preset buttons (All Time, 1Y, 6M, 90D, 30D) + date inputs |
+| Analysis Tool | 3×4 layer toggle grid (show/hide individual or grouped traces) |
+| Winner Cards | 4 info cards (relPath IOU2/ME4U/UOME + KOLMO Deviation), winner highlighted green |
+| Data Table | All data points in selected period, reverse chronological, winner badge per row |
+| Fallback | CORS proxy cascade → mock data generator → manual JSON paste modal |
+
+**Color palette:**
+
+| Token | Color | Hex |
+|-------|-------|-----|
+| ME4U | Copper | `#C08060` |
+| IOU2 | Purple | `#5B4E7C` |
+| UOME | Magenta | `#8B4789` |
+| KOLMO Deviation | Mauve | `#8B5A7D` |
+| Background | Cream | `#F0EBCE` |
+
+**Figma:** [KOLMO-graph design](https://www.figma.com/design/CCRFZdoMvCQGXae2EsUcNg/KOLMO-graph)
+
+### Using with External Tools
 
 All three JSON files can be consumed by external tools:
+- **KOLMO graph** — built-in React dashboard (`frontend/`)
 - **Plotly / React** — direct JSON import for charts
 - **Google Sheets Sync** — import JSON via Google Sheets
 - **JSON to Figma** — direct JSON data import
